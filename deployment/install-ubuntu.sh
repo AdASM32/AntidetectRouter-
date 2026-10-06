@@ -72,6 +72,10 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable --now router-plus-pptp-host.service
+systemctl is-active --quiet router-plus-pptp-host.service || {
+    echo 'PPTP host helper did not start. Inspect: journalctl -u router-plus-pptp-host.service --no-pager' >&2
+    exit 1
+}
 echo 'Deployment requested. Watch: docker logs -f router-plus'
 echo 'Use a PuTTY SSH tunnel: local port 8080 -> 127.0.0.1:8080.'
 echo 'PPTP availability must still be tested through a real connection.'

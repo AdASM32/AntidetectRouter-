@@ -12,5 +12,7 @@ done
 iptables -w -t raw -N ROUTER_PLUS_PPTP 2>/dev/null || true
 iptables -w -t raw -C PREROUTING -s "$container_ip" -p tcp --dport 1723 -j ROUTER_PLUS_PPTP 2>/dev/null || \
     iptables -w -t raw -A PREROUTING -s "$container_ip" -p tcp --dport 1723 -j ROUTER_PLUS_PPTP
-iptables -w -t raw -C ROUTER_PLUS_PPTP -j CT --helper pptp 2>/dev/null || \
-    iptables -w -t raw -A ROUTER_PLUS_PPTP -j CT --helper pptp
+# CT helper lookup uses the protocol on this rule. A TCP match on a caller's
+# jump does not supply the protocol when the helper rule is validated.
+iptables -w -t raw -C ROUTER_PLUS_PPTP -p tcp --dport 1723 -j CT --helper pptp 2>/dev/null || \
+    iptables -w -t raw -A ROUTER_PLUS_PPTP -p tcp --dport 1723 -j CT --helper pptp

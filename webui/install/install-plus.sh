@@ -30,7 +30,7 @@ fi
 
 # opkg retains feed signature and package checksum verification.
 opkg update
-opkg install ppp-mod-pptp ip-full jsonfilter curl uhttpd rpcd
+opkg install ppp-mod-pptp ip-full jsonfilter curl uhttpd rpcd luci-app-openvpn openssl-util
 
 # Preserve locally deployed files before the reviewed application update.
 backup="/root/router-plus-backup-$(date +%Y%m%d-%H%M%S)-$$"
@@ -70,7 +70,7 @@ uci set router_plus.main.installed=1
 uci commit router_plus
 /etc/init.d/pptp-plus enable
 /etc/init.d/pptp-plus restart
-/etc/init.d/firewall reload || /etc/init.d/firewall start
+fw4 reload || fw4 start
 /etc/init.d/uhttpd reload
 echo "PPTP extension installed. Existing OpenVPN and Passwall configurations were retained."
 echo "Private backup: $backup"

@@ -15,7 +15,7 @@ command -v iptables >/dev/null || {
     DEBIAN_FRONTEND=noninteractive apt-get install -y iptables
 }
 systemctl enable --now docker
-for module in ppp_generic ppp_mppe pptp tun nf_conntrack_pptp nf_nat_pptp; do
+for module in ppp_generic ppp_mppe pptp tun nf_conntrack_pptp nf_nat_pptp nft_reject_inet nft_fib_inet nft_masq nft_chain_nat; do
     modprobe "$module" || { echo "Missing kernel module: $module. Inspect the prerequisites report." >&2; exit 1; }
 done
 [[ -c /dev/ppp && -c /dev/net/tun ]] || { echo 'The host did not provide PPP/TUN devices.' >&2; exit 1; }
@@ -54,7 +54,7 @@ docker run -d --name router-plus --label router-plus.production=true \
 
 # Reload host modules before Docker at boot, then assign the NAT helper only
 # to this container. Host routes and automatic conntrack helpers are unchanged.
-printf '%s\n' ppp_generic ppp_mppe pptp tun nf_conntrack_pptp nf_nat_pptp > /etc/modules-load.d/router-plus.conf
+printf '%s\n' ppp_generic ppp_mppe pptp tun nf_conntrack_pptp nf_nat_pptp nft_reject_inet nft_fib_inet nft_masq nft_chain_nat > /etc/modules-load.d/router-plus.conf
 install -D -m 0755 "$project_dir/deployment/ensure-host.sh" /usr/local/lib/router-plus/ensure-host.sh
 cat > /etc/systemd/system/router-plus-pptp-host.service <<'EOF'
 [Unit]

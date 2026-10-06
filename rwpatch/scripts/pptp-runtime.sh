@@ -60,7 +60,7 @@ pptp_rw_device() {
 
 pptp_dependencies() {
     local command plugin
-    for command in uci ubus jsonfilter ip nft ifup ifdown; do
+    for command in uci ubus jsonfilter ip nft fw4 ifup ifdown; do
         command -v "$command" >/dev/null 2>&1 || return 1
     done
     plugin=0
@@ -298,7 +298,7 @@ pptp_select() {
     done
     killall vpn-dns-monitor.sh 2>/dev/null || :
     # Legacy Passwall mode can stop fw4; reload also clears its old kill switch.
-    /etc/init.d/firewall reload >/dev/null 2>&1 ||
-        /etc/init.d/firewall start >/dev/null 2>&1 || { pptp_unselect; return 1; }
+    fw4 reload >/dev/null 2>&1 ||
+        fw4 start >/dev/null 2>&1 || { pptp_unselect; return 1; }
     ifup "$profile" || { pptp_unselect; return 1; }
 }

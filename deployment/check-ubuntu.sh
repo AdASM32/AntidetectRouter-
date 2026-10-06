@@ -8,7 +8,7 @@ if command -v systemd-detect-virt >/dev/null; then systemd-detect-virt || true; 
 echo '=== SSH listener ==='
 ss -lnt | awk 'NR == 1 || /:22([[:space:]]|$)/'
 echo '=== Router capabilities ==='
-for module in ppp_generic ppp_mppe pptp tun nf_conntrack_pptp nf_nat_pptp; do
+for module in ppp_generic ppp_mppe pptp tun nf_conntrack_pptp nf_nat_pptp nft_reject_inet nft_fib_inet nft_masq nft_chain_nat; do
     if modinfo "$module" >/dev/null 2>&1; then
         echo "$module: available"
     else

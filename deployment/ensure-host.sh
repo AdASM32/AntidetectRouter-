@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-for module in ppp_generic ppp_mppe pptp tun nf_conntrack_pptp nf_nat_pptp; do
+for module in ppp_generic ppp_mppe pptp tun nf_conntrack_pptp nf_nat_pptp nft_reject_inet nft_fib_inet nft_masq nft_chain_nat; do
     modprobe "$module"
 done
 for attempt in {1..20}; do

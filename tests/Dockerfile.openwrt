@@ -1,4 +1,4 @@
 FROM openwrt/rootfs@sha256:3c8adad624f661f683e9e5d2977bc44fa4b29a17f76eb5c45d0aec8e079668cc
 RUN mkdir -p /var/lock /var/run /tmp/resolv.conf.d \
     && opkg update \
-    && opkg install ppp-mod-pptp ip-full curl openvpn-openssl openssl-util jq
+    && opkg install ppp-mod-pptp ip-full curl openvpn-openssl openssl-util jq luci-app-openvpn

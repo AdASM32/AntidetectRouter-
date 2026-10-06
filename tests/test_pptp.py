@@ -47,6 +47,11 @@ class PPTPIntegration(unittest.TestCase):
             cp /src/webui/frontend/* /www/vektort13-admin/
             chmod -R a+rX /www/vektort13-admin
             chmod 755 /www/cgi-bin/vektort13/*.sh
+            test_password="$(openssl rand -base64 24)"
+            printf '%s\n%s\n' "$test_password" "$test_password" | passwd root >/dev/null 2>&1
+            umask 077
+            printf '%s' "$test_password" > /tmp/router-plus-test-password
+            umask 022
             ln -s /src/rwpatch/scripts/pptp-runtime.sh /usr/lib/router-plus/pptp-runtime.sh
             touch /etc/config/network /etc/config/openvpn
             uci set network.loopback=interface
@@ -74,11 +79,9 @@ class PPTPIntegration(unittest.TestCase):
                    f"type=bind,src={ROOT},dst=/src,readonly", IMAGE, "/bin/sh", "-c", init)
         cls.port = int(cls.docker("port", cls.container, "8080/tcp").stdout.strip().rsplit(":", 1)[1])
         for _ in range(40):
-            result = cls.shell("ubus call session create '{\"timeout\":300}'", check=False)
+            result = cls.shell(". /usr/share/libubox/jshn.sh; json_init; json_add_string username root; json_add_string password \"$(cat /tmp/router-plus-test-password)\"; json_add_int timeout 300; ubus call session login \"$(json_dump)\"", check=False)
             if result.returncode == 0:
                 cls.session = json.loads(result.stdout)["ubus_rpc_session"]
-                grant = json.dumps({"ubus_rpc_session": cls.session, "scope": "luci", "objects": [["*", "*"]]})
-                cls.docker("exec", cls.container, "ubus", "call", "session", "grant", grant)
                 break
             time.sleep(0.1)
         else:
@@ -89,11 +92,11 @@ class PPTPIntegration(unittest.TestCase):
             time.sleep(0.1)
         cls.shell("/etc/init.d/network start; /etc/init.d/dnsmasq start")
 
-    def call(self, action="list", body=None, authenticated=True, method=None, origin=None):
+    def call(self, action="list", body=None, authenticated=True, method=None, origin=None, session=None):
         connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=15)
         headers = {}
         if authenticated:
-            headers["Cookie"] = f"sysauth={self.session}"
+            headers["Cookie"] = f"sysauth={session or self.session}"
         if body is not None:
             headers["Content-Type"] = "application/json"
         if origin is not None:
@@ -121,6 +124,10 @@ class PPTPIntegration(unittest.TestCase):
         status, result = self.call(authenticated=False)
         self.assertEqual(status, 403)
         self.assertIn("Authentication", result["message"])
+        readonly = json.loads(self.shell("ubus call session create '{\"timeout\":300}'").stdout)["ubus_rpc_session"]
+        grant = json.dumps({"ubus_rpc_session": readonly, "scope": "uci", "objects": [["network", "read"], ["openvpn", "read"]]})
+        self.docker("exec", self.container, "ubus", "call", "session", "grant", grant)
+        self.assertEqual(self.call(session=readonly)[0], 403)
         _, result = self.call("connect")
         self.assertEqual(result["status"], "error")
         _, result = self.call("save", {}, origin="https://untrusted.invalid")

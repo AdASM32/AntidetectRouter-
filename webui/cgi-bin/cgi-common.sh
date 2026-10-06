@@ -35,6 +35,12 @@ is_valid_luci_session() {
         if ubus call session access "{\"ubus_rpc_session\":\"$sid\",\"scope\":\"luci\",\"object\":\"*\",\"function\":\"*\"}" 2>/dev/null | grep -q '"access":[[:space:]]*true'; then
             return 0
         fi
+        # Current rpcd/LuCI sessions expose UCI ACLs, not a "luci" scope.
+        # Require administration of both networks and OpenVPN, not merely login.
+        if ubus call session access "{\"ubus_rpc_session\":\"$sid\",\"scope\":\"uci\",\"object\":\"network\",\"function\":\"write\"}" 2>/dev/null | grep -q '"access":[[:space:]]*true' &&
+            ubus call session access "{\"ubus_rpc_session\":\"$sid\",\"scope\":\"uci\",\"object\":\"openvpn\",\"function\":\"write\"}" 2>/dev/null | grep -q '"access":[[:space:]]*true'; then
+            return 0
+        fi
     fi
 
     [ -f "/tmp/luci-sessions/$sid" ]

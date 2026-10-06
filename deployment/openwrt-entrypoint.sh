@@ -55,7 +55,22 @@ EOF
     touch /etc/router-plus-bootstrap-complete
 fi
 
+# Docker forwards the host's loopback HTTP listener from the bridge gateway.
+# Keep LuCI and CGI protected by login while permitting the SSH tunnel.
+uci set firewall.router_plus_management=rule
+uci set firewall.router_plus_management.name=Router-Plus-Management
+uci set firewall.router_plus_management.src=wan
+uci set "firewall.router_plus_management.src_ip=$gateway"
+uci set firewall.router_plus_management.proto=tcp
+uci set firewall.router_plus_management.dest_port=80
+uci set firewall.router_plus_management.target=ACCEPT
+uci commit firewall
+# HTTP is transported inside SSH; HTTPS redirects would leave the mapped port.
+uci set uhttpd.main.redirect_https=0
+uci commit uhttpd
+
 sh /opt/router-plus/webui/install/install-plus.sh
+nft list table inet fw4 >/dev/null || { echo 'fw4 failed to load; inspect host nftables modules and logread.' >&2; exit 1; }
 /etc/init.d/openvpn restart
 /etc/init.d/uhttpd restart
 

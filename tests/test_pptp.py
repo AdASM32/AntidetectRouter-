@@ -157,6 +157,26 @@ class PPTPIntegration(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertIn("origin", result["message"])
 
+    def test_pptp_options_use_supported_mandatory_mppe(self):
+        self.shell("cp -p /etc/ppp/options.pptp /tmp/router-plus-options-original; printf '%s\\n' 'lcp-echo-interval 9' >> /etc/ppp/options.pptp")
+        self.addCleanup(lambda: self.shell("cp -p /tmp/router-plus-options-original /etc/ppp/options.pptp; rm -f /tmp/router-plus-options-original"))
+        parse = "pppd dryrun plugin pptp.so pptp_server 192.0.2.10 file /etc/ppp/options.pptp"
+        before = self.shell(parse, check=False)
+        self.assertEqual(before.returncode, 2)
+        self.assertIn("unrecognized option 'mppe'", before.stderr)
+        self.shell("sh /src/webui/install/fix-pptp-options.sh")
+        self.assertEqual(self.shell(parse).returncode, 0)
+        options = self.shell("cat /etc/ppp/options.pptp").stdout.splitlines()
+        for option in ["require-mppe-128", "nomppe-40", "nomppe-stateful", "lcp-echo-interval 9"]:
+            self.assertIn(option, options)
+        fixed = self.shell("sha256sum /etc/ppp/options.pptp").stdout
+        self.shell("sh /src/webui/install/fix-pptp-options.sh")
+        self.assertEqual(self.shell("sha256sum /etc/ppp/options.pptp").stdout, fixed)
+        self.shell("cp -p /tmp/router-plus-options-original /etc/ppp/options.pptp; printf '%s\\n' 'router-plus-deliberately-invalid-option' >> /etc/ppp/options.pptp")
+        custom = self.shell("sha256sum /etc/ppp/options.pptp").stdout
+        self.assertNotEqual(self.shell("sh /src/webui/install/fix-pptp-options.sh", check=False).returncode, 0)
+        self.assertEqual(self.shell("sha256sum /etc/ppp/options.pptp").stdout, custom)
+
     def test_browser_luci_login_hands_session_to_panel(self):
         # CookieJar enforces browser path rules; manually injecting Cookie would
         # hide the production bug caused by LuCI's /cgi-bin/luci/ cookie path.

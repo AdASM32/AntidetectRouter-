@@ -31,6 +31,7 @@ fi
 # opkg retains feed signature and package checksum verification.
 opkg update
 opkg install ppp-mod-pptp ip-full jsonfilter curl uhttpd rpcd luci-app-openvpn openssl-util
+sh "$BASE_DIR/webui/install/fix-pptp-options.sh"
 
 # Preserve locally deployed files before the reviewed application update.
 backup="/root/router-plus-backup-$(date +%Y%m%d-%H%M%S)-$$"

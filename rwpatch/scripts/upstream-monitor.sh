@@ -8,6 +8,8 @@ CHECK_INTERVAL=2
 LAST_STATE="down"
 CURRENT_UPSTREAM_TUN=""
 
+[ ! -r /usr/lib/router-plus/pptp-runtime.sh ] || . /usr/lib/router-plus/pptp-runtime.sh
+
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG"
 }
@@ -131,6 +133,10 @@ log ""
 
 # Main monitoring loop
 while true; do
+    if command -v pptp_selected >/dev/null 2>&1 && pptp_selected >/dev/null; then
+        sleep "$CHECK_INTERVAL"
+        continue
+    fi
     # Check if Passwall is active - if yes, skip monitoring
     if is_passwall_active; then
         if [ "$LAST_STATE" != "passwall" ]; then

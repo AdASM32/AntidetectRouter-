@@ -138,6 +138,7 @@ patch_passwall_dns() {
 
 # Switch to Passwall mode
 switch_to_passwall() {
+    release_selected_pptp || return 1
     log_msg "=== SWITCHING TO PASSWALL ==="
     
     # 1. Stop OpenVPN if running
@@ -247,6 +248,7 @@ switch_to_passwall() {
 
 # Switch to OpenVPN mode
 switch_to_openvpn() {
+    release_selected_pptp || return 1
     log_msg "=== SWITCHING TO OPENVPN ==="
     
     # 1. Stop Passwall
@@ -350,6 +352,15 @@ legacy_status() {
 legacy_control() {
     vpn="$1"
     cmd="$2"
+
+    case "$vpn:$cmd" in
+        passwall:restart|openvpn:restart)
+            release_selected_pptp || {
+                json_error error 'Could not release the active PPTP connection'
+                return 1
+            }
+            ;;
+    esac
 
     case "$vpn:$cmd" in
         passwall:start)

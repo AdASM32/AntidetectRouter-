@@ -8,6 +8,22 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 require_auth
 json_headers
 
+[ ! -r /usr/lib/router-plus/pptp-runtime.sh ] || . /usr/lib/router-plus/pptp-runtime.sh
+
+# The PPTP policy preserves the WAN route used by management. Bind dashboard
+# requests to the selected tunnel so the displayed IP describes client egress.
+curl() {
+    local profile device
+    case "$VPN_MODE" in
+        PPTP)
+            profile="$(pptp_selected)" && device="$(pptp_device "$profile")" || return 1
+            command curl --interface "$device" "$@"
+            ;;
+        'PPTP disconnected') return 1 ;;
+        *) command curl "$@" ;;
+    esac
+}
+
 # Get CPU usage (OpenWrt style)
 CPU_LINE=$(top -bn1 | grep "CPU:" | head -1)
 if [ -n "$CPU_LINE" ]; then
@@ -90,6 +106,15 @@ get_geo_info() {
 
 # Detect active VPN mode
 detect_vpn_mode() {
+    if [ -r /usr/lib/router-plus/pptp-runtime.sh ]; then
+        . /usr/lib/router-plus/pptp-runtime.sh
+        local profile="$(pptp_selected || true)"
+        if [ -n "$profile" ] && pptp_device "$profile" >/dev/null; then
+            echo PPTP
+            return
+        fi
+        [ -z "$profile" ] || { echo 'PPTP disconnected'; return; }
+    fi
     # Check Passwall
     if pgrep xray >/dev/null 2>&1 || pgrep v2ray >/dev/null 2>&1; then
         if uci get passwall.@global[0].enabled 2>/dev/null | grep -q '1'; then
@@ -119,7 +144,14 @@ get_latency() {
     local mode=$(detect_vpn_mode)
     
     # Determine target based on active VPN mode
-    if [ "$mode" = "OpenVPN" ]; then
+    if [ "$mode" = PPTP ]; then
+        local profile="$(pptp_selected)"
+        local device="$(pptp_device "$profile")"
+        [ -n "$device" ] || { echo 'N/A'; return; }
+        local avg=$(ping -I "$device" -c 3 -W 1 8.8.8.8 2>/dev/null | awk -F= '/min\/avg\/max/ {split($2,a,"/"); gsub(/[[:space:]]/,"",a[2]); print a[2]}')
+        [ -n "$avg" ] && echo "$avg ms" || echo 'N/A'
+        return
+    elif [ "$mode" = "OpenVPN" ]; then
         # OpenVPN active - ping 8.8.8.8
         target="8.8.8.8"
     elif [ "$mode" = "Passwall" ]; then
@@ -176,7 +208,7 @@ get_latency() {
 VPN_STATUS="Inactive"
 VPN_MODE=$(detect_vpn_mode)
 
-if [ "$VPN_MODE" != "None" ]; then
+if [ "$VPN_MODE" != "None" ] && [ "$VPN_MODE" != 'PPTP disconnected' ]; then
     VPN_STATUS="Active"
 fi
 

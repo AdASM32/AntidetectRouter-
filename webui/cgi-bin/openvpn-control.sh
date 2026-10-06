@@ -120,6 +120,11 @@ case "$ACTION" in
                     fi
                 fi
                 
+                [ "$CONFIG" = rw ] || release_selected_pptp || {
+                    json_error error 'Could not release the active PPTP connection'
+                    exit 0
+                }
+
                 # Start OpenVPN directly
                 LOG_FILE="/tmp/openvpn-$CONFIG.log"
                 
@@ -200,6 +205,10 @@ case "$ACTION" in
                 fi
                 ;;
             restart)
+                [ "$CONFIG" = rw ] || release_selected_pptp || {
+                    json_error error 'Could not release the active PPTP connection'
+                    exit 0
+                }
                 # Simply stop and start
                 PID_FILE="/var/run/openvpn-$CONFIG.pid"
                 

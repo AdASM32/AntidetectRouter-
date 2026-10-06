@@ -1,0 +1,9 @@
+#!/bin/sh
+[ -r /usr/lib/router-plus/pptp-runtime.sh ] || exit 0
+. /usr/lib/router-plus/pptp-runtime.sh
+pptp_selected >/dev/null || exit 0
+case "$ACTION" in ifup|ifdown|ifupdate) ;; *) exit 0 ;; esac
+mkdir -p "$PPTP_STATE_DIR"
+exec 9>"$PPTP_STATE_DIR/lock"
+flock -x -n 9 || exit 0
+pptp_reconcile

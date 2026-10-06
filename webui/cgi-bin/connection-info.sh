@@ -9,8 +9,30 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 require_auth
 json_headers
 
+[ ! -r /usr/lib/router-plus/pptp-runtime.sh ] || . /usr/lib/router-plus/pptp-runtime.sh
+
+curl() {
+    local profile device
+    case "$MODE" in
+        PPTP)
+            profile="$(pptp_selected)" && device="$(pptp_device "$profile")" || return 1
+            command curl --interface "$device" "$@"
+            ;;
+        'PPTP disconnected') return 1 ;;
+        *) command curl "$@" ;;
+    esac
+}
+
 # ==================== Detect VPN Mode ====================
 detect_vpn_mode() {
+    if [ -r /usr/lib/router-plus/pptp-runtime.sh ]; then
+        local profile="$(pptp_selected || true)"
+        if [ -n "$profile" ] && pptp_device "$profile" >/dev/null; then
+            echo PPTP
+            return
+        fi
+        [ -z "$profile" ] || { echo 'PPTP disconnected'; return; }
+    fi
     # Check Passwall
     if pgrep -f xray >/dev/null 2>&1 || pgrep -f v2ray >/dev/null 2>&1; then
         PASSWALL_ENABLED=$(uci get passwall.@global[0].enabled 2>/dev/null)
@@ -93,6 +115,13 @@ get_location() {
 # ==================== Get Latency ====================
 get_latency() {
     local mode="$1"
+    if [ "$mode" = PPTP ]; then
+        local profile="$(pptp_selected)" device
+        device="$(pptp_device "$profile")" || { echo 'N/A'; return; }
+        local avg="$(ping -I "$device" -c 3 -W 1 8.8.8.8 2>/dev/null | awk -F= '/min\/avg\/max/ {split($2,a,"/"); gsub(/[[:space:]]/,"",a[2]); print a[2]}')"
+        [ -n "$avg" ] && echo "$avg ms" || echo 'N/A'
+        return
+    fi
     
     if [ "$mode" = "Passwall" ]; then
         # Get Passwall node IP
@@ -134,7 +163,7 @@ get_latency() {
 check_vpn_status() {
     local mode="$1"
     
-    if [ "$mode" = "Passwall" ] || [ "$mode" = "OpenVPN" ]; then
+    if [ "$mode" = "Passwall" ] || [ "$mode" = "OpenVPN" ] || [ "$mode" = PPTP ]; then
         echo "active"
     else
         echo "inactive"

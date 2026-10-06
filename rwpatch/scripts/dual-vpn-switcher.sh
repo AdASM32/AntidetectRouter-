@@ -10,6 +10,8 @@ PASSWALL_FIRST_RUN=1
 LOOP_COUNT=0
 RW_DOWN_COUNTER=0  # Track how long RW has been down
 
+[ ! -r /usr/lib/router-plus/pptp-runtime.sh ] || . /usr/lib/router-plus/pptp-runtime.sh
+
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG"
 }
@@ -1111,6 +1113,16 @@ while true; do
     
     # RW is running - reset counter
     RW_DOWN_COUNTER=0
+
+    # Keep the existing RW recovery above. PPTP owns its upstream policy only.
+    if command -v pptp_selected >/dev/null 2>&1 && pptp_selected >/dev/null; then
+        if [ "$CURRENT_MODE" != pptp ]; then
+            log 'PPTP selected: upstream routing is managed by Router Plus'
+            CURRENT_MODE=pptp
+        fi
+        sleep "$CHECK_INTERVAL"
+        continue
+    fi
     
     # Detect what's ready
     PASSWALL_READY=0

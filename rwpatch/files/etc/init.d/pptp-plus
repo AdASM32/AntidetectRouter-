@@ -1,0 +1,19 @@
+#!/bin/sh /etc/rc.common
+START=95
+STOP=15
+USE_PROCD=1
+
+start_service() {
+    procd_open_instance
+    procd_set_param command /bin/sh /usr/lib/router-plus/pptp-monitor.sh
+    procd_set_param respawn 3600 5 5
+    procd_close_instance
+}
+
+stop_service() {
+    . /usr/lib/router-plus/pptp-runtime.sh
+    mkdir -p "$PPTP_STATE_DIR"
+    exec 9>"$PPTP_STATE_DIR/lock"
+    flock -x 9
+    pptp_unselect
+}

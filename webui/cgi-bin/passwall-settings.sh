@@ -163,6 +163,10 @@ fi
 
 # ==================== Apply Settings (Restart) ====================
 if [ "$ACTION" = "apply" ]; then
+    release_selected_pptp || {
+        json_error error 'Could not release the active PPTP connection'
+        exit 0
+    }
     # Get current Remote DNS before restart
     REMOTE_DNS=$(uci get passwall.@global[0].remote_dns 2>/dev/null || echo "1.1.1.1")
     

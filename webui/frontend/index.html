@@ -27,6 +27,10 @@
                 <span class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ovpnGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#FF8C00;stop-opacity:1"/><stop offset="100%" style="stop-color:#FF6600;stop-opacity:1"/></linearGradient></defs><circle cx="12" cy="12" r="10" fill="url(#ovpnGrad)" opacity="0.9"/><g transform="translate(12, 12)"><circle cx="0" cy="-2" r="2.5" fill="#1a2332"/><path d="M -1.5 -1 L -1 3 L 1 3 L 1.5 -1 Z" fill="#1a2332"/></g></svg></span>
                 <span>OpenVPN</span>
             </a>
+            <a href="#/pptp" class="menu-item" data-page="pptp">
+                <span class="icon">🔗</span>
+                <span>PPTP</span>
+            </a>
             <a href="#/logs" class="menu-item" data-page="logs">
                 <span class="icon">📋</span>
                 <span>Logs</span>
@@ -93,6 +97,13 @@
                     </div>
                 </div>
             </div>
+
+            <div class="section">
+                <h3>Подключить устройство к роутеру</h3>
+                <p>Устройство → OpenVPN на роутере → выбранный PPTP или прокси → интернет.</p>
+                <a class="btn btn-primary" data-roadwarrior-download aria-disabled="true" style="pointer-events:none;opacity:0.5">Скачать OpenVPN для устройства</a>
+                <p data-roadwarrior-notice>Проверка входящего профиля…</p>
+            </div>
             
             <div class="section">
                 <h3>VPN Status</h3>
@@ -130,6 +141,33 @@
             </div>
         </div>
         
+        <div id="page-pptp" class="page">
+            <div class="page-header">
+                <h2>PPTP</h2>
+                <p>Подключения Virtual Router Plus</p>
+            </div>
+            <div class="section">
+                <p>При выборе PPTP исходящий трафик клиентов OpenVPN идёт через этот туннель. Входящий OpenVPN-сервер продолжает работать.</p>
+                <a class="btn" data-roadwarrior-download aria-disabled="true" style="pointer-events:none;opacity:0.5">Скачать OpenVPN для устройства</a>
+                <p data-roadwarrior-notice>Проверка входящего профиля…</p>
+                <p id="pptp-message" role="status" aria-live="polite"></p>
+                <div id="pptp-profiles">Загрузка подключений…</div>
+            </div>
+            <div class="section">
+                <h3 id="pptp-form-title">Добавить подключение</h3>
+                <form id="pptp-form" class="form-grid">
+                    <input type="hidden" id="pptp-id">
+                    <div class="form-group"><label for="pptp-name">Название</label><input id="pptp-name" required maxlength="64" autocomplete="off"></div>
+                    <div class="form-group"><label for="pptp-server">IPv4 или имя сервера</label><input id="pptp-server" required maxlength="253" autocomplete="off"></div>
+                    <div class="form-group"><label for="pptp-username">Логин</label><input id="pptp-username" required maxlength="128" autocomplete="off"></div>
+                    <div class="form-group"><label for="pptp-password">Пароль</label><input id="pptp-password" type="password" maxlength="256" autocomplete="new-password"><small>При редактировании оставьте пустым, чтобы сохранить пароль.</small></div>
+                    <div class="form-group"><label for="pptp-dns">DNS (необязательно, адреса через пробел)</label><input id="pptp-dns" maxlength="128" placeholder="DNS сервера или 1.1.1.1 8.8.8.8"></div>
+                    <div class="form-group"><label for="pptp-mtu">MTU</label><input id="pptp-mtu" type="number" min="576" max="1450" value="1400" required></div>
+                    <div class="form-group"><label><input id="pptp-autostart" type="checkbox"> Подключать при запуске роутера</label></div>
+                    <div><button class="btn btn-primary" type="submit">Сохранить</button> <button class="btn" id="pptp-cancel" type="button">Очистить форму</button></div>
+                </form>
+            </div>
+        </div>
         <!-- VPN Control -->
         <!-- OpenVPN -->
         <div id="page-openvpn" class="page">
@@ -619,5 +657,7 @@
     <script src="app.js"></script>
     <script src="network.js?v=12"></script>
     <script src="advanced.js?v=12"></script>
+    <script src="pptp.js"></script>
+    <script src="roadwarrior.js"></script>
 </body>
 </html>

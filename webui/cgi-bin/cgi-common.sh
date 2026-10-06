@@ -100,3 +100,13 @@ get_param() {
     }
     get_qs_param "$key"
 }
+
+# Explicitly selecting an existing upstream releases only the PPTP extension.
+release_selected_pptp() (
+    [ -r /usr/lib/router-plus/pptp-runtime.sh ] || exit 0
+    . /usr/lib/router-plus/pptp-runtime.sh
+    pptp_selected >/dev/null || exit 0
+    exec 9>"$PPTP_STATE_DIR/lock"
+    flock -x -n 9 || exit 1
+    pptp_unselect
+)

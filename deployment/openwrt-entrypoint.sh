@@ -37,6 +37,10 @@ for attempt in 1 2 3 4 5 6 7 8 9 10; do
     sleep 1
 done
 ubus list service | grep -qx service || { echo 'procd failed to start.' >&2; exit 1; }
+# The minimal rootfs has no system UCI package, so logd otherwise never starts.
+# Preserve existing system preferences and enable the local diagnostic journal.
+[ -f /etc/config/system ] || printf 'config system\n\toption log_size 128\n' > /etc/config/system
+/etc/init.d/log start
 /etc/init.d/network start
 
 if [ ! -f /etc/router-plus-bootstrap-complete ]; then

@@ -3,6 +3,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const notices = document.querySelectorAll('[data-roadwarrior-notice]');
     try {
         const response = await fetch('/cgi-bin/vektort13/roadwarrior-profile.sh?action=status');
+        if (response.status === 403) {
+            const page = window.location.hash.slice(2) || 'dashboard';
+            window.location.replace(`/cgi-bin/luci/admin/router_plus?page=${encodeURIComponent(page)}`);
+            return;
+        }
         const data = await response.json();
         if (!response.ok || data.status !== 'ok') throw new Error(data.message || 'Не удалось проверить профиль OpenVPN');
         if (!data.available) {

@@ -57,8 +57,10 @@ require_auth() {
             ;;
     esac
 
-    session_id="$(get_cookie_value sysauth)"
+    session_id="$(get_cookie_value router_plus_session)"
+    [ -z "$session_id" ] && session_id="$(get_cookie_value sysauth)"
     [ -z "$session_id" ] && session_id="$(get_cookie_value sysauth_http)"
+    [ -z "$session_id" ] && session_id="$(get_cookie_value sysauth_https)"
 
     if is_valid_luci_session "$session_id"; then
         return 0

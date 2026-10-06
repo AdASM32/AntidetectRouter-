@@ -4,6 +4,7 @@ The route fixture supplies a veth device instead of contacting a PPTP server.
 PPP authentication, GRE transit and production deployment need a separate test.
 """
 import http.client
+import http.cookiejar
 import json
 import os
 from pathlib import Path
@@ -11,10 +12,18 @@ import secrets
 import subprocess
 import time
 import unittest
+import urllib.error
+import urllib.parse
+import urllib.request
 
 
 IMAGE = os.environ.get("ROUTER_PLUS_TEST_IMAGE", "router-plus/openwrt-tests:24.10.2")
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 class PPTPIntegration(unittest.TestCase):
@@ -47,6 +56,10 @@ class PPTPIntegration(unittest.TestCase):
             cp /src/webui/frontend/* /www/vektort13-admin/
             chmod -R a+rX /www/vektort13-admin
             chmod 755 /www/cgi-bin/vektort13/*.sh
+            mkdir -p /usr/share/luci/menu.d /usr/share/ucode/luci/controller
+            cp /src/webui/luci/router-plus.json /usr/share/luci/menu.d/
+            cp /src/webui/luci/router_plus.uc /usr/share/ucode/luci/controller/
+            chmod 644 /usr/share/luci/menu.d/router-plus.json /usr/share/ucode/luci/controller/router_plus.uc
             test_password="$(openssl rand -base64 24)"
             printf '%s\n%s\n' "$test_password" "$test_password" | passwd root >/dev/null 2>&1
             umask 077
@@ -128,11 +141,83 @@ class PPTPIntegration(unittest.TestCase):
         grant = json.dumps({"ubus_rpc_session": readonly, "scope": "uci", "objects": [["network", "read"], ["openvpn", "read"]]})
         self.docker("exec", self.container, "ubus", "call", "session", "grant", grant)
         self.assertEqual(self.call(session=readonly)[0], 403)
+        self.docker("exec", self.container, "ubus", "call", "session", "set",
+            json.dumps({"ubus_rpc_session": readonly,
+                "values": {"username": "readonly", "token": secrets.token_hex(16)}}))
+        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=15)
+        connection.request("GET", "/cgi-bin/luci/admin/router_plus", headers={"Cookie": f"sysauth_http={readonly}"})
+        response = connection.getresponse()
+        self.assertEqual(response.status, 403)
+        self.assertIsNone(response.getheader("Set-Cookie"))
+        self.assertIn(b"administration rights", response.read())
+        connection.close()
         _, result = self.call("connect")
         self.assertEqual(result["status"], "error")
         _, result = self.call("save", {}, origin="https://untrusted.invalid")
         self.assertEqual(result["status"], "error")
         self.assertIn("origin", result["message"])
+
+    def test_browser_luci_login_hands_session_to_panel(self):
+        # CookieJar enforces browser path rules; manually injecting Cookie would
+        # hide the production bug caused by LuCI's /cgi-bin/luci/ cookie path.
+        jar = http.cookiejar.CookieJar()
+        browser = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+            urllib.request.HTTPCookieProcessor(jar), NoRedirect())
+        base = f"http://127.0.0.1:{self.port}"
+
+        def request(path, data=None, content_type=None):
+            headers = {"Content-Type": content_type} if content_type else {}
+            req = urllib.request.Request(base + path, data=data, headers=headers)
+            try:
+                response = browser.open(req, timeout=15)
+            except urllib.error.HTTPError as error:
+                response = error
+            with response:
+                return response.status, response.headers, response.read()
+
+        entry = "/cgi-bin/luci/admin/router_plus?page=pptp"
+        status, headers, body = request(entry)
+        self.assertEqual(status, 403)
+        self.assertNotIn("Set-Cookie", headers)
+        self.assertIn(b"luci_password", body)
+
+        password = self.shell("cat /tmp/router-plus-test-password").stdout
+        login = urllib.parse.urlencode({"luci_username": "root", "luci_password": password}).encode()
+        status, headers, _ = request("/cgi-bin/luci/admin/status/overview", login,
+            "application/x-www-form-urlencoded")
+        self.assertEqual(status, 302)
+        self.assertIn("path=/cgi-bin/luci/", headers.get("Set-Cookie", ""))
+        api = "/cgi-bin/vektort13/pptp-control.sh?action=list"
+        self.assertEqual(request(api)[0], 403)
+
+        status, headers, _ = request(entry)
+        self.assertEqual(status, 302)
+        self.assertEqual(headers["Location"], "/vektort13-admin/#/pptp")
+        cookie = headers.get("Set-Cookie", "")
+        self.assertIn("router_plus_session=", cookie)
+        self.assertIn("Path=/cgi-bin/vektort13", cookie)
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=Strict", cookie)
+        self.assertEqual(headers["Cache-Control"], "no-store")
+        self.assertEqual(request(api)[0], 200)
+        self.assertEqual(request("/cgi-bin/vektort13/roadwarrior-profile.sh?action=status")[0], 200)
+        status, headers, _ = request("/cgi-bin/luci/admin/router_plus?page=https://untrusted.invalid")
+        self.assertEqual(status, 302)
+        self.assertEqual(headers["Location"], "/vektort13-admin/#/dashboard")
+
+        profile = dict(name="Browser profile", server="192.0.2.10", username="fixture",
+            password=secrets.token_hex(16), dns="1.1.1.1", mtu=1400, autostart=0)
+        status, _, body = request("/cgi-bin/vektort13/pptp-control.sh?action=save",
+            json.dumps(profile).encode(), "application/json")
+        self.assertEqual(status, 200)
+        result = json.loads(body)
+        self.assertEqual(result["status"], "ok")
+        self.addCleanup(lambda: self.call("delete", {"id": result["id"]}))
+
+        # The dedicated panel cookie must not survive a LuCI logout as a usable
+        # session, even if the browser still stores that cookie.
+        self.assertEqual(request("/cgi-bin/luci/admin/logout")[0], 302)
+        self.assertEqual(request(api)[0], 403)
 
     def test_incoming_openvpn_profile_download_requires_authentication(self):
         self.addCleanup(lambda: self.shell("rm -f /root/router-plus-fixture.ovpn /tmp/profile-test.ovpn /tmp/profile-test-ca.pem /tmp/profile-test-key.pem; uci -q delete openvpn.rw.ca; uci commit openvpn", check=False))

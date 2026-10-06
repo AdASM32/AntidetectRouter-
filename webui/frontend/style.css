@@ -922,6 +922,31 @@ body {
     margin-bottom: 30px;
 }
 
+/* Fields in the added PPTP page use the panel's existing form theme. */
+#page-pptp .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 520px;
+}
+
+#page-pptp .form-group input:not([type="checkbox"]) {
+    width: 100%;
+    padding: 10px 15px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+}
+
+#page-pptp .form-group input:focus {
+    outline: 2px solid var(--btn-primary);
+    outline-offset: 2px;
+}
+
+#page-pptp .form-group small {
+    color: var(--text-secondary);
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 200px 1fr;

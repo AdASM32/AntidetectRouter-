@@ -44,11 +44,8 @@ for path in /www/vektort13-admin /www/cgi-bin/vektort13 /usr/lib/router-plus /et
 done
 chmod -R go-rwx "$backup"
 
-mkdir -p /www/vektort13-admin /www/cgi-bin/vektort13 /usr/lib/router-plus /etc/hotplug.d/iface
-cp "$BASE_DIR"/webui/frontend/* /www/vektort13-admin/
-cp "$BASE_DIR"/webui/cgi-bin/*.sh /www/cgi-bin/vektort13/
-chmod 644 /www/vektort13-admin/*
-chmod 755 /www/vektort13-admin /www/cgi-bin/vektort13 /www/cgi-bin/vektort13/*.sh
+sh "$BASE_DIR/webui/install/install-panel.sh"
+mkdir -p /usr/lib/router-plus /etc/hotplug.d/iface
 cp "$BASE_DIR/rwpatch/scripts/pptp-runtime.sh" /usr/lib/router-plus/
 cp "$BASE_DIR/rwpatch/scripts/pptp-monitor.sh" /usr/lib/router-plus/
 cp "$BASE_DIR/rwpatch/files/etc/init.d/pptp-plus" /etc/init.d/
@@ -74,5 +71,5 @@ fw4 reload || fw4 start
 /etc/init.d/uhttpd reload
 echo "PPTP extension installed. Existing OpenVPN and Passwall configurations were retained."
 echo "Private backup: $backup"
-echo 'Open /vektort13-admin/#/pptp after signing into LuCI.'
+echo 'Open /cgi-bin/luci/admin/router_plus?page=pptp to sign in and open the panel.'
 echo 'If legacy VPN monitors were already running, restart them to load their updated code.'

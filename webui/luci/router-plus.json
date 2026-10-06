@@ -1,0 +1,12 @@
+{
+  "admin/router_plus": {
+    "title": "Router Plus",
+    "order": 75,
+    "firstchild_ineligible": true,
+    "action": {
+      "type": "function",
+      "module": "luci.controller.router_plus",
+      "function": "open_panel"
+    }
+  }
+}

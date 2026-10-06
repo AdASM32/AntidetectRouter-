@@ -188,7 +188,17 @@ pptp_remove_output_rule() {
 
 pptp_guard() {
     local device="${1:-}" rw delete_table='' forward_rules nat_rules='' output_rules
+    local profile server helper_definition='' helper_rule=''
     rw="$(pptp_rw_device)" || return 1
+    profile="$(pptp_selected || true)"
+    if [ -n "$profile" ]; then
+        server="$(uci -q get "network.$profile.server")"
+        printf '%s\n' "$server" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || return 1
+        # fw4 does not automatically attach helpers on a masquerading WAN.
+        # The host's Docker NAT helper is in a different network namespace.
+        helper_definition='ct helper pptp { type "pptp" protocol tcp; l3proto ip; }'
+        helper_rule="ip daddr $server tcp dport 1723 ct helper set \"pptp\";"
+    fi
     if [ -n "$device" ]; then
         case "$device" in *[!A-Za-z0-9_-]*) return 1 ;; esac
         forward_rules="iifname \"$rw\" meta nfproto ipv6 drop; iifname \"$rw\" oifname != \"$device\" drop;"
@@ -203,7 +213,8 @@ pptp_guard() {
     nft -f - <<EOF
 $delete_table
 table inet router_plus_pptp {
-    chain output { type filter hook output priority -10; policy accept; $output_rules }
+    $helper_definition
+    chain output { type filter hook output priority -10; policy accept; $helper_rule $output_rules }
     chain forward { type filter hook forward priority -10; policy accept; $forward_rules }
     chain postrouting { type nat hook postrouting priority 100; policy accept; $nat_rules }
 }

@@ -388,6 +388,8 @@ class PPTPIntegration(unittest.TestCase):
         route = self.shell("ip -4 route get 203.0.113.1 from 10.99.0.2 iif tun0").stdout
         self.assertIn("dev pptp-test", route)
         guard = self.shell("nft list table inet router_plus_pptp").stdout
+        self.assertIn('ct helper pptp', guard)
+        self.assertIn('ip daddr 192.0.2.10 tcp dport 1723 ct helper set "pptp"', guard)
         self.assertIn('meta nfproto ipv6 drop', guard)
         self.assertIn('oifname != "pptp-test" drop', guard)
         self.assertIn('th dport 53 drop', guard)

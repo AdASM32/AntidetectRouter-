@@ -138,6 +138,14 @@ docker logs -f router-plus
 открытие UDP 1194 и создание проекта выполняются только при запуске этого
 установщика пользователем на целевом VPS.
 
+PPTP-helper нужен и внутри OpenWrt: conntrack каждого network namespace отдельный,
+а fw4 не назначает автоматические helpers для WAN с masquerading. Таблица
+`router_plus_pptp` назначает IPv4 helper `pptp` исходящему TCP 1723 только к адресу
+выбранного профиля. Это позволяет распознать ответный GRE как related-трафик
+перед стандартной проверкой WAN input; политики fw4 и остальные upstreams
+сохраняются. Helper на Ubuntu отдельно обеспечивает Docker NAT. Назначение
+внутреннего helper проверено настоящим TCP SYN и флагом IPS_HELPER в conntrack.
+
 Firewall контейнера пропускает HTTP панели от Docker bridge gateway, через
 который приходит SSH tunnel хоста. Ubuntu публикует этот порт только на loopback.
 Установщик также загружает host-модули nftables, необходимые для fw4, и runtime
